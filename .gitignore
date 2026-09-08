@@ -1,0 +1,36 @@
+### C#
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache/options directory
+.vs/
+
+# Debug symbols
+*.pdb
+
+# NuGet Packages
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# .NET build artifacts
+artifacts/
+
+# Publish output
+publish/
+
+# JetBrains IDE directory
+.idea/
+
+# Rider user-specific solution settings
+*.sln.DotSettings.user
+
+# IntelliJ build output
+out/
+
+# Local configuration and runtime data
+appsettings.Local.json
+
+# SQLite
+*.sqlite*
