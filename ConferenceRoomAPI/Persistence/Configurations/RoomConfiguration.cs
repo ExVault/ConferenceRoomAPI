@@ -11,6 +11,8 @@ public class RoomConfiguration : IEntityTypeConfiguration<Room>
         builder.ToTable("Rooms", tableBuilder =>
         {
             tableBuilder.HasCheckConstraint("CK_Rooms_Capacity", "\"Capacity\" > 0");
+
+            // SQLite stores decimals as text, so cast them before comparing numeric values.
             tableBuilder.HasCheckConstraint("CK_Rooms_HourlyRate", "CAST(\"HourlyRate\" AS NUMERIC) >= 0");
         });
 

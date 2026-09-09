@@ -22,6 +22,8 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasKey(booking => booking.Id);
         builder.Property(booking => booking.HourlyRateSnapshot).HasPrecision(18, 2);
         builder.Property(booking => booking.TotalPrice).HasPrecision(18, 2);
+
+        // Availability checks will often search bookings by room and time range.
         builder.HasIndex(booking => new { booking.RoomId, booking.StartUtc, booking.EndUtc });
 
         builder.HasOne(booking => booking.Room)

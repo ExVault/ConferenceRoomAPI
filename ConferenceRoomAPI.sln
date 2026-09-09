@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConferenceRoomAPI", "ConferenceRoomAPI\ConferenceRoomAPI.csproj", "{A1BD2D6C-1F75-4A09-875C-E9F337422648}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConferenceRoomAPI.IntegrationTests", "ConferenceRoomAPI.IntegrationTests\ConferenceRoomAPI.IntegrationTests.csproj", "{F9AFAFAB-90B0-44CB-A1FC-ED9C384A4944}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{A1BD2D6C-1F75-4A09-875C-E9F337422648}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1BD2D6C-1F75-4A09-875C-E9F337422648}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1BD2D6C-1F75-4A09-875C-E9F337422648}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9AFAFAB-90B0-44CB-A1FC-ED9C384A4944}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9AFAFAB-90B0-44CB-A1FC-ED9C384A4944}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9AFAFAB-90B0-44CB-A1FC-ED9C384A4944}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9AFAFAB-90B0-44CB-A1FC-ED9C384A4944}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

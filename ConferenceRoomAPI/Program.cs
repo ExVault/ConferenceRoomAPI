@@ -1,6 +1,8 @@
+using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using ConferenceRoomAPI.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,26 +13,35 @@ var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connStr)
-        .UseSeeding(DbSeeder.Seed)
+        .UseSeeding(DbSeeder.Seed) // EF CLI tooling uses synchronous delegate
         .UseAsyncSeeding(DbSeeder.SeedAsync));
 
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+
+builder.Services.AddRoomFeatures();
 
 var app = builder.Build();
-
-// Apply pending migrations on startup, convenient for this project's scope.
-// Production migrations should be deployed separately using a bundle or reviewed SQL script.
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-}
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.DocumentTitle = "Conference Room API - Swagger UI";
+        options.SwaggerEndpoint("/openapi/v1.json", "Conference Room API v1");
+    });
+
+    app.MapScalarApiReference(options => { options.Title = "Conference Room API - Scalar"; });
+}
+else
+{
+    app.UseExceptionHandler();
 }
 
 app.UseHttpsRedirection();
+
+app.MapRoomEndpoints();
 
 app.Run();
