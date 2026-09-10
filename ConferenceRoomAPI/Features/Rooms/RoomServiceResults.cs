@@ -4,7 +4,7 @@ public enum CreateRoomStatus
 {
     Created,
     NameConflict,
-    ExtraServicesNotFound
+    InvalidExtraServiceIds
 }
 
 public record CreateRoomResult
@@ -18,4 +18,18 @@ public enum DeleteRoomResult
 {
     Deleted,
     NotFound
+}
+
+public enum UpdateRoomStatus
+{
+    Updated,
+    NotFound,
+    NameConflict,
+    InvalidExtraServiceIds
+}
+
+public record UpdateRoomResult
+{
+    public UpdateRoomStatus Status { get; init; }
+    public ICollection<int> InvalidExtraServiceIds { get; } = [];
 }

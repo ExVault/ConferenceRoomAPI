@@ -33,7 +33,6 @@ public class ConferenceRoomApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
 
-        // Avoid Windows Event Log permission errors from breaking the tests
         builder.ConfigureLogging(logging => logging.ClearProviders());
 
         builder.ConfigureTestServices(services =>

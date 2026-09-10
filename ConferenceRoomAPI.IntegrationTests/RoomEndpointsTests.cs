@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using ConferenceRoomAPI.Domain.Entities;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -96,7 +97,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
     }
 
     [Fact]
-    public async Task CreateRoom_WithUnknownService_ReturnsValidationProblem()
+    public async Task CreateRoom_WithInvalidServiceId_ReturnsValidationProblem()
     {
         var request = new CreateRoomRequest
         {
@@ -115,7 +116,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         Assert.NotNull(problem);
         
         Assert.Equal(
-            $"Unknown extra service IDs: {int.MaxValue}",
+            $"Invalid extra service IDs: {int.MaxValue}",
             Assert.Single(problem.Errors[nameof(request.ExtraServiceIds)]));
     }
 
@@ -163,6 +164,183 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
     public async Task DeleteRoom_WithUnknownRoom_ReturnsNotFound()
     {
         var response = await _client.DeleteAsync($"/rooms/{int.MaxValue}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithValidRequest_UpdatesPropertiesAndServices()
+    {
+        await using (var arrangeScope = _factory.Services.CreateAsyncScope())
+        {
+            var arrangeDb = arrangeScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var room = await arrangeDb.Rooms.Include(savedRoom => savedRoom.ExtraServices)
+                .SingleAsync(savedRoom => savedRoom.Id == 1);
+
+            room.ExtraServices.Add(new RoomExtraService { Room = room, ExtraServiceId = 1 });
+            room.ExtraServices.Add(new RoomExtraService { Room = room, ExtraServiceId = 2 });
+            await arrangeDb.SaveChangesAsync();
+        }
+
+        var request = new UpdateRoomRequest
+        {
+            Name = "  Оновлений зал  ",
+            Capacity = 60,
+            HourlyRate = 2500m
+        };
+        
+        request.ExtraServiceIdsToAdd.Add(2);
+        request.ExtraServiceIdsToAdd.Add(3);
+        request.ExtraServiceIdsToRemove.Add(1);
+
+        var firstResponse = await _client.PatchAsJsonAsync("/rooms/1", request);
+        var repeatedResponse = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.NoContent, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, repeatedResponse.StatusCode);
+
+        await using var assertScope = _factory.Services.CreateAsyncScope();
+        var assertDb = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        var updatedRoom = await assertDb.Rooms.Include(room => room.ExtraServices)
+            .SingleAsync(room => room.Id == 1);
+
+        Assert.Equal("Оновлений зал", updatedRoom.Name);
+        Assert.Equal(60, updatedRoom.Capacity);
+        Assert.Equal(2500m, updatedRoom.HourlyRate);
+        Assert.Equal([2, 3], updatedRoom.ExtraServices.Select(service => service.ExtraServiceId).Order());
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithOnlyHourlyRate_PreservesOtherProperties()
+    {
+        var request = new UpdateRoomRequest { HourlyRate = 2500m };
+
+        var response = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var room = await db.Rooms.SingleAsync(savedRoom => savedRoom.Id == 1);
+
+        Assert.Equal("Зал А", room.Name);
+        Assert.Equal(50, room.Capacity);
+        Assert.Equal(2500m, room.HourlyRate);
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithInvalidValues_ReturnsValidationProblem()
+    {
+        var request = new UpdateRoomRequest
+        {
+            Name = " ",
+            Capacity = 0,
+            HourlyRate = -1m
+        };
+        request.ExtraServiceIdsToAdd.Add(-1);
+
+        var response = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+        Assert.Equal("Name is required.", Assert.Single(problem.Errors[nameof(request.Name)]));
+        Assert.Equal("Capacity must be greater than zero.", Assert.Single(problem.Errors[nameof(request.Capacity)]));
+        Assert.Equal("Hourly rate must not be negative.", Assert.Single(problem.Errors[nameof(request.HourlyRate)]));
+        Assert.Equal("Extra service IDs must be greater than zero.",
+            Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToAdd)]));
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithNoUpdates_ReturnsValidationProblem()
+    {
+        var response = await _client.PatchAsJsonAsync("/rooms/1", new UpdateRoomRequest());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+        
+        Assert.Equal("At least one room update must be provided.",
+            Assert.Single(problem.Errors[nameof(UpdateRoomRequest)]));
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithServiceInBothCollections_ReturnsValidationProblem()
+    {
+        var request = new UpdateRoomRequest();
+        request.ExtraServiceIdsToAdd.Add(1);
+        request.ExtraServiceIdsToRemove.Add(1);
+
+        var response = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+        
+        Assert.Equal("An extra service ID cannot be both added and removed.",
+            Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToRemove)]));
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithInvalidServiceId_ReturnsValidationProblemWithoutUpdatingRoom()
+    {
+        var request = new UpdateRoomRequest { Name = "Must not be saved" };
+        request.ExtraServiceIdsToAdd.Add(int.MaxValue);
+
+        var response = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+        
+        Assert.Equal($"Invalid extra service IDs to add: {int.MaxValue}",
+            Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToAdd)]));
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        var room = await db.Rooms.SingleAsync(savedRoom => savedRoom.Id == 1);
+
+        Assert.Equal("Зал А", room.Name);
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithExistingName_ReturnsConflict()
+    {
+        var request = new UpdateRoomRequest { Name = "Зал B" };
+
+        var response = await _client.PatchAsJsonAsync("/rooms/1", request);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithInactiveRoom_ReturnsNotFound()
+    {
+        await _client.DeleteAsync("/rooms/1");
+
+        var response = await _client.PatchAsJsonAsync(
+            "/rooms/1",
+            new UpdateRoomRequest { HourlyRate = 2500m });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateRoom_WithUnknownRoom_ReturnsNotFound()
+    {
+        var response = await _client.PatchAsJsonAsync(
+            $"/rooms/{int.MaxValue}",
+            new UpdateRoomRequest { HourlyRate = 2500m });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

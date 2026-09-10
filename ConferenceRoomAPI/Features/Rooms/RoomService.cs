@@ -17,13 +17,13 @@ public class RoomService : IRoomService
     public async Task<CreateRoomResult> CreateAsync(CreateRoomRequest request, CancellationToken ct)
     {
         var name = request.Name.Trim();
-        
+
         var serviceIds = request.ExtraServiceIds.ToHashSet();
         
         var invalidServiceIds = await FindInvalidExtraServiceIdsAsync(serviceIds, ct);
         if (invalidServiceIds.Length > 0)
         {
-            var result = new CreateRoomResult { Status = CreateRoomStatus.ExtraServicesNotFound };
+            var result = new CreateRoomResult { Status = CreateRoomStatus.InvalidExtraServiceIds };
             
             foreach (var serviceId in invalidServiceIds)
             {
@@ -84,6 +84,77 @@ public class RoomService : IRoomService
         await _db.SaveChangesAsync(ct);
 
         return DeleteRoomResult.Deleted;
+    }
+
+    public async Task<UpdateRoomResult> UpdateAsync(int id, UpdateRoomRequest request, CancellationToken ct)
+    {
+        var room = await _db.Rooms
+            .Include(savedRoom => savedRoom.ExtraServices)
+            .SingleOrDefaultAsync(savedRoom => savedRoom.Id == id && savedRoom.IsActive, ct);
+
+        if (room == null)
+            return new UpdateRoomResult { Status = UpdateRoomStatus.NotFound };
+
+        var serviceIdsToAdd = request.ExtraServiceIdsToAdd.ToHashSet();
+        var serviceIdsToRemove = request.ExtraServiceIdsToRemove.ToHashSet();
+        var requestedServiceIds = serviceIdsToAdd.Concat(serviceIdsToRemove).ToHashSet();
+
+        var invalidServiceIds = await FindInvalidExtraServiceIdsAsync(requestedServiceIds, ct);
+        if (invalidServiceIds.Length > 0)
+        {
+            var result = new UpdateRoomResult { Status = UpdateRoomStatus.InvalidExtraServiceIds };
+
+            foreach (var serviceId in invalidServiceIds)
+            {
+                result.InvalidExtraServiceIds.Add(serviceId);
+            }
+
+            return result;
+        }
+
+        if (request.Name != null)
+        {
+            room.Name = request.Name.Trim();
+        }
+
+        if (request.Capacity != null)
+        {
+            room.Capacity = request.Capacity.Value;
+        }
+
+        if (request.HourlyRate != null)
+        {
+            room.HourlyRate = request.HourlyRate.Value;
+        }
+
+        foreach (var roomService in room.ExtraServices
+                     .Where(roomService => serviceIdsToRemove.Contains(roomService.ExtraServiceId))
+                     .ToList())
+        {
+            room.ExtraServices.Remove(roomService);
+        }
+
+        var existingServiceIds = room.ExtraServices.Select(roomService => roomService.ExtraServiceId).ToHashSet();
+
+        foreach (var serviceId in serviceIdsToAdd.Except(existingServiceIds))
+        {
+            room.ExtraServices.Add(new RoomExtraService
+            {
+                Room = room,
+                ExtraServiceId = serviceId
+            });
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            return new UpdateRoomResult { Status = UpdateRoomStatus.NameConflict };
+        }
+
+        return new UpdateRoomResult { Status = UpdateRoomStatus.Updated };
     }
 
     private async Task<int[]> FindInvalidExtraServiceIdsAsync(HashSet<int> serviceIds, CancellationToken ct)
