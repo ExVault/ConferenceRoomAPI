@@ -8,8 +8,9 @@ public class Booking
     public int Id { get; init; }
     public int RoomId { get; init; }
     public Room Room { get; init; } = null!;
-    public DateTime StartUtc { get; init; }
-    public DateTime EndUtc { get; init; }
+    public DateOnly Date { get; init; }
+    public TimeOnly StartTime { get; init; }
+    public TimeOnly EndTime { get; init; }
     public decimal HourlyRateSnapshot { get; init; }
     public decimal TotalPrice { get; init; }
     public ICollection<BookingExtraService> ExtraServices { get; } = [];

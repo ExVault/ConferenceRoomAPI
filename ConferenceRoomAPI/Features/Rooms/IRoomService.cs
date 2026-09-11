@@ -7,5 +7,5 @@ public interface IRoomService
     Task<DeleteRoomResult> DeleteAsync(int id, CancellationToken ct);
 
     Task<IReadOnlyCollection<AvailableRoomResponse>> FindAvailableAsync(
-        DateTime startUtc, DateTime endUtc, int minCapacity, CancellationToken ct);
+        DateOnly date, TimeOnly startTime, TimeOnly endTime, int minCapacity, CancellationToken ct);
 }

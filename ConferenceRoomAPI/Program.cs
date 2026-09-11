@@ -1,4 +1,3 @@
-using ConferenceRoomAPI.Common.OpenApi;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using ConferenceRoomAPI.Persistence.Seeding;
@@ -17,8 +16,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         .UseSeeding(DbSeeder.Seed) // EF CLI tooling uses synchronous delegate
         .UseAsyncSeeding(DbSeeder.SeedAsync));
 
-builder.Services.AddOpenApi(options => options.AddSchemaTransformer<StrictDateTimeOffsetTransformer>());
+builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.RespectNullableAnnotations = true;
+    options.SerializerOptions.RespectRequiredConstructorParameters = true;
+});
 
 builder.Services.AddRoomFeatures();
 

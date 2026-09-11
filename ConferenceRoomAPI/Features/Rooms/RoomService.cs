@@ -22,13 +22,9 @@ public class RoomService : IRoomService
         var serviceIds = request.ExtraServiceIds.ToHashSet();
 
         var invalidServiceIds = await FindInvalidExtraServiceIdsAsync(serviceIds, ct);
+
         if (invalidServiceIds.Length > 0)
-        {
-            return new CreateRoomResult(invalidServiceIds)
-            {
-                Status = CreateRoomStatus.InvalidExtraServiceIds
-            };
-        }
+            return new CreateRoomResult(CreateRoomStatus.InvalidExtraServiceIds, 0, invalidServiceIds);
 
         var room = new Room
         {
@@ -55,14 +51,10 @@ public class RoomService : IRoomService
         // Let the database enforce uniqueness atomically
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            return new CreateRoomResult { Status = CreateRoomStatus.NameConflict };
+            return new CreateRoomResult(CreateRoomStatus.NameConflict, 0, []);
         }
 
-        return new CreateRoomResult
-        {
-            Status = CreateRoomStatus.Created,
-            RoomId = room.Id
-        };
+        return new CreateRoomResult(CreateRoomStatus.Created, room.Id, []);
     }
 
     public async Task<DeleteRoomResult> DeleteAsync(int id, CancellationToken ct)
@@ -85,17 +77,18 @@ public class RoomService : IRoomService
     }
 
     public async Task<IReadOnlyCollection<AvailableRoomResponse>> FindAvailableAsync(
-        DateTime startUtc,
-        DateTime endUtc,
+        DateOnly date,
+        TimeOnly startTime,
+        TimeOnly endTime,
         int minCapacity,
         CancellationToken ct)
     {
-        // Strict comparisons let one booking start exactly when another one ends.
         var rooms = await _db.Rooms
             .AsNoTracking()
             .Where(room => room.IsActive &&
                            room.Capacity >= minCapacity &&
-                           !room.Bookings.Any(b => b.StartUtc < endUtc && b.EndUtc > startUtc))
+                           !room.Bookings.Any(b =>
+                               b.Date == date && b.StartTime < endTime && b.EndTime > startTime))
             .Include(room => room.ExtraServices)
             .ThenInclude(service => service.ExtraService)
             .OrderBy(room => room.Id)
@@ -111,13 +104,12 @@ public class RoomService : IRoomService
                     service.ExtraService.Price))
                 .ToArray();
 
-            return new AvailableRoomResponse(extraServices)
-            {
-                Id = room.Id,
-                Name = room.Name,
-                Capacity = room.Capacity,
-                HourlyRate = room.HourlyRate
-            };
+            return new AvailableRoomResponse(
+                room.Id,
+                room.Name,
+                room.Capacity,
+                room.HourlyRate,
+                extraServices);
         }).ToArray();
     }
 
@@ -128,20 +120,16 @@ public class RoomService : IRoomService
             .SingleOrDefaultAsync(r => r.Id == id && r.IsActive, ct);
 
         if (room == null)
-            return new UpdateRoomResult { Status = UpdateRoomStatus.NotFound };
+            return new UpdateRoomResult(UpdateRoomStatus.NotFound, []);
 
-        var serviceIdsToAdd = request.ExtraServiceIdsToAdd.ToHashSet();
-        var serviceIdsToRemove = request.ExtraServiceIdsToRemove.ToHashSet();
+        var serviceIdsToAdd = (request.ExtraServiceIdsToAdd ?? []).ToHashSet();
+        var serviceIdsToRemove = (request.ExtraServiceIdsToRemove ?? []).ToHashSet();
         var requestedServiceIds = serviceIdsToAdd.Concat(serviceIdsToRemove).ToHashSet();
 
         var invalidServiceIds = await FindInvalidExtraServiceIdsAsync(requestedServiceIds, ct);
+
         if (invalidServiceIds.Length > 0)
-        {
-            return new UpdateRoomResult(invalidServiceIds)
-            {
-                Status = UpdateRoomStatus.InvalidExtraServiceIds
-            };
-        }
+            return new UpdateRoomResult(UpdateRoomStatus.InvalidExtraServiceIds, invalidServiceIds);
 
         if (request.Name != null)
         {
@@ -158,7 +146,7 @@ public class RoomService : IRoomService
             room.HourlyRate = request.HourlyRate.Value;
         }
 
-        // Treat service changes as set operations so retrying the same PATCH has the same outcome.
+        // Treat room service changes as set operations so retrying the same PATCH has the same outcome.
         foreach (var service in room.ExtraServices
                      .Where(s => serviceIdsToRemove.Contains(s.ExtraServiceId))
                      .ToList())
@@ -183,10 +171,10 @@ public class RoomService : IRoomService
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            return new UpdateRoomResult { Status = UpdateRoomStatus.NameConflict };
+            return new UpdateRoomResult(UpdateRoomStatus.NameConflict, []);
         }
 
-        return new UpdateRoomResult { Status = UpdateRoomStatus.Updated };
+        return new UpdateRoomResult(UpdateRoomStatus.Updated, []);
     }
 
     private async Task<int[]> FindInvalidExtraServiceIdsAsync(HashSet<int> serviceIds, CancellationToken ct)

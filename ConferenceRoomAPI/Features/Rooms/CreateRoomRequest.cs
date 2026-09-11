@@ -1,15 +1,7 @@
-using System.Text.Json.Serialization;
-
 namespace ConferenceRoomAPI.Features.Rooms;
 
-public class CreateRoomRequest
-{
-    public required string Name { get; init; }
-    public int Capacity { get; init; }
-    public decimal HourlyRate { get; init; }
-
-    // Populate the already initialized empty collection during deserialization
-    // instead of creating a new one
-    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
-    public ICollection<int> ExtraServiceIds { get; } = [];
-}
+public record CreateRoomRequest(
+    string Name,
+    int Capacity,
+    decimal HourlyRate,
+    IReadOnlyCollection<int> ExtraServiceIds);

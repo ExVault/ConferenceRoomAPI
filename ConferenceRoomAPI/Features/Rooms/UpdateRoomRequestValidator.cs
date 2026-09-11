@@ -8,6 +8,9 @@ public class UpdateRoomRequestValidator : IRequestValidator<UpdateRoomRequest>
     {
         var result = new ValidationResult();
 
+        var serviceIdsToAdd = request.ExtraServiceIdsToAdd ?? [];
+        var serviceIdsToRemove = request.ExtraServiceIdsToRemove ?? [];
+
         if (request.Name != null)
         {
             RoomRequestValidation.ValidateName(request.Name, nameof(request.Name), result);
@@ -22,23 +25,23 @@ public class UpdateRoomRequestValidator : IRequestValidator<UpdateRoomRequest>
         }
 
         RoomRequestValidation.ValidateServiceIds(
-            request.ExtraServiceIdsToAdd,
+            serviceIdsToAdd,
             nameof(request.ExtraServiceIdsToAdd),
             result);
 
         RoomRequestValidation.ValidateServiceIds(
-            request.ExtraServiceIdsToRemove,
+            serviceIdsToRemove,
             nameof(request.ExtraServiceIdsToRemove),
             result);
 
-        if (request.ExtraServiceIdsToAdd.Intersect(request.ExtraServiceIdsToRemove).Any())
+        if (serviceIdsToAdd.Intersect(serviceIdsToRemove).Any())
         {
             result.Errors[nameof(request.ExtraServiceIdsToRemove)] =
                 ["An extra service ID cannot be both added and removed."];
         }
 
         if (request.Name == null && request.Capacity == null && request.HourlyRate == null &&
-            request.ExtraServiceIdsToAdd.Count == 0 && request.ExtraServiceIdsToRemove.Count == 0)
+            serviceIdsToAdd.Count == 0 && serviceIdsToRemove.Count == 0)
         {
             result.Errors[nameof(UpdateRoomRequest)] = ["At least one room update must be provided."];
         }

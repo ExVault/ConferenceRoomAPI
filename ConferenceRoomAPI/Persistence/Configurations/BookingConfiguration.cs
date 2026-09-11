@@ -10,7 +10,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
     {
         builder.ToTable("Bookings", tableBuilder =>
         {
-            tableBuilder.HasCheckConstraint("CK_Bookings_TimeRange", "\"EndUtc\" > \"StartUtc\"");
+            tableBuilder.HasCheckConstraint("CK_Bookings_TimeRange", "\"EndTime\" > \"StartTime\"");
 
             tableBuilder.HasCheckConstraint(
                 "CK_Bookings_HourlyRateSnapshot",
@@ -24,7 +24,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(booking => booking.TotalPrice).HasPrecision(18, 2);
 
         // Availability checks will often search bookings by room and time range.
-        builder.HasIndex(booking => new { booking.RoomId, booking.StartUtc, booking.EndUtc });
+        builder.HasIndex(booking => new { booking.RoomId, booking.Date, booking.StartTime, booking.EndTime });
 
         builder.HasOne(booking => booking.Room)
             .WithMany(room => room.Bookings)

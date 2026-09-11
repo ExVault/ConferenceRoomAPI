@@ -49,13 +49,10 @@ public static class RoomEndpoints
         if (!validation.IsValid)
             return TypedResults.ValidationProblem(validation.Errors);
 
-        // Normalize start/end provided by client
-        var startUtc = request.StartAt.Value.UtcDateTime;
-        var endUtc = request.EndAt.Value.UtcDateTime;
-
         var rooms = await roomService.FindAvailableAsync(
-            startUtc,
-            endUtc,
+            request.Date,
+            request.StartTime,
+            request.EndTime,
             request.MinCapacity,
             ct);
 
@@ -141,8 +138,14 @@ public static class RoomEndpoints
     private static IResult CreateInvalidExtraServicesProblem(UpdateRoomRequest request, UpdateRoomResult result)
     {
         var invalidServiceIds = result.InvalidExtraServiceIds.ToHashSet();
-        var invalidIdsToAdd = request.ExtraServiceIdsToAdd.Where(invalidServiceIds.Contains).Order().ToArray();
-        var invalidIdsToRemove = request.ExtraServiceIdsToRemove.Where(invalidServiceIds.Contains).Order().ToArray();
+        var invalidIdsToAdd = (request.ExtraServiceIdsToAdd ?? [])
+            .Where(invalidServiceIds.Contains)
+            .Order()
+            .ToArray();
+        var invalidIdsToRemove = (request.ExtraServiceIdsToRemove ?? [])
+            .Where(invalidServiceIds.Contains)
+            .Order()
+            .ToArray();
 
         var errors = new Dictionary<string, string[]>();
 

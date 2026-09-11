@@ -1,16 +1,8 @@
-using System.Text.Json.Serialization;
-
 namespace ConferenceRoomAPI.Features.Rooms;
 
-public class UpdateRoomRequest
-{
-    public string? Name { get; init; }
-    public int? Capacity { get; init; }
-    public decimal? HourlyRate { get; init; }
-
-    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
-    public ICollection<int> ExtraServiceIdsToAdd { get; } = [];
-
-    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
-    public ICollection<int> ExtraServiceIdsToRemove { get; } = [];
-}
+public record UpdateRoomRequest(
+    string? Name = null,
+    int? Capacity = null,
+    decimal? HourlyRate = null,
+    IReadOnlyCollection<int>? ExtraServiceIdsToAdd = null,
+    IReadOnlyCollection<int>? ExtraServiceIdsToRemove = null);
