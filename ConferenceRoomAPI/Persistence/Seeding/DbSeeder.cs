@@ -5,6 +5,7 @@ namespace ConferenceRoomAPI.Persistence.Seeding;
 
 public static class DbSeeder
 {
+    // Create fresh entities each time because seeding can run against different DbContext instances.
     private static Room[] InitialRooms =>
     [
         new() { Name = "Зал А", Capacity = 50, HourlyRate = 2000m },
@@ -18,7 +19,7 @@ public static class DbSeeder
         new() { Name = "Wi-Fi", Price = 300m },
         new() { Name = "Звук", Price = 700m }
     ];
-    
+
     public static void Seed(DbContext db, bool _)
     {
         if (!db.Set<Room>().Any())

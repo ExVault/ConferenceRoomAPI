@@ -1,7 +1,7 @@
 namespace ConferenceRoomAPI.Domain.Entities;
 
 /// <summary>
-/// Links a room to an extra service that can be selected when booking that room.
+///     Links a room to an extra service that can be selected when booking that room.
 /// </summary>
 public class RoomExtraService
 {

@@ -1,3 +1,4 @@
+using ConferenceRoomAPI.Common.OpenApi;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using ConferenceRoomAPI.Persistence.Seeding;
@@ -9,14 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
-                   ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+              ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connStr)
         .UseSeeding(DbSeeder.Seed) // EF CLI tooling uses synchronous delegate
         .UseAsyncSeeding(DbSeeder.SeedAsync));
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddSchemaTransformer<StrictDateTimeOffsetTransformer>());
 builder.Services.AddProblemDetails();
 
 builder.Services.AddRoomFeatures();

@@ -1,7 +1,7 @@
 namespace ConferenceRoomAPI.Domain.Entities;
 
 /// <summary>
-/// Links an extra service to a booking and keeps the service price recorded at booking time.
+///     Links an extra service to a booking and keeps the service price recorded at booking time.
 /// </summary>
 public class BookingExtraService
 {

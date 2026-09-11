@@ -7,11 +7,16 @@ public enum CreateRoomStatus
     InvalidExtraServiceIds
 }
 
-public record CreateRoomResult
+public class CreateRoomResult
 {
+    public CreateRoomResult(IReadOnlyCollection<int>? invalidExtraServiceIds = null)
+    {
+        InvalidExtraServiceIds = invalidExtraServiceIds ?? [];
+    }
+
     public CreateRoomStatus Status { get; init; }
     public int RoomId { get; init; }
-    public ICollection<int> InvalidExtraServiceIds { get; } = [];
+    public IReadOnlyCollection<int> InvalidExtraServiceIds { get; } = [];
 }
 
 public enum DeleteRoomResult
@@ -28,8 +33,13 @@ public enum UpdateRoomStatus
     InvalidExtraServiceIds
 }
 
-public record UpdateRoomResult
+public class UpdateRoomResult
 {
+    public UpdateRoomResult(IReadOnlyCollection<int>? invalidExtraServiceIds = null)
+    {
+        InvalidExtraServiceIds = invalidExtraServiceIds ?? [];
+    }
+
     public UpdateRoomStatus Status { get; init; }
-    public ICollection<int> InvalidExtraServiceIds { get; } = [];
+    public IReadOnlyCollection<int> InvalidExtraServiceIds { get; } = [];
 }

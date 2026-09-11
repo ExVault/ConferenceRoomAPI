@@ -17,14 +17,14 @@ public class RoomConfiguration : IEntityTypeConfiguration<Room>
         });
 
         builder.HasKey(room => room.Id);
-        
+
         builder.Property(room => room.Name).HasMaxLength(100).IsRequired();
         //.UseCollation("NOCASE")
         // sqlite built-in NOCASE handles only ascii characters and does not provide
         // unicode case-insensitive comparison
-        
+
         builder.HasIndex(room => room.Name).IsUnique();
-        
+
         builder.Property(room => room.HourlyRate).HasPrecision(18, 2);
         builder.Property(room => room.IsActive).HasDefaultValue(true);
     }

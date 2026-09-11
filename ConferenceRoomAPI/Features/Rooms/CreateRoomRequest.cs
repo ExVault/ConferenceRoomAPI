@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace ConferenceRoomAPI.Features.Rooms;
 
-public record CreateRoomRequest
+public class CreateRoomRequest
 {
     public required string Name { get; init; }
     public int Capacity { get; init; }

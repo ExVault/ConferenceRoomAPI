@@ -25,7 +25,7 @@ public class UpdateRoomRequestValidator : IRequestValidator<UpdateRoomRequest>
             request.ExtraServiceIdsToAdd,
             nameof(request.ExtraServiceIdsToAdd),
             result);
-        
+
         RoomRequestValidation.ValidateServiceIds(
             request.ExtraServiceIdsToRemove,
             nameof(request.ExtraServiceIdsToRemove),

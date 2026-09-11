@@ -11,11 +11,11 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.ToTable("Bookings", tableBuilder =>
         {
             tableBuilder.HasCheckConstraint("CK_Bookings_TimeRange", "\"EndUtc\" > \"StartUtc\"");
-            
+
             tableBuilder.HasCheckConstraint(
                 "CK_Bookings_HourlyRateSnapshot",
                 "CAST(\"HourlyRateSnapshot\" AS NUMERIC) >= 0");
-            
+
             tableBuilder.HasCheckConstraint("CK_Bookings_TotalPrice", "CAST(\"TotalPrice\" AS NUMERIC) >= 0");
         });
 

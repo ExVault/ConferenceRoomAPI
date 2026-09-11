@@ -32,10 +32,7 @@ public static class RoomRequestValidation
         }
     }
 
-    public static void ValidateServiceIds(
-        ICollection<int> serviceIds,
-        string propertyName,
-        ValidationResult result)
+    public static void ValidateServiceIds(ICollection<int> serviceIds, string propertyName, ValidationResult result)
     {
         if (serviceIds.Any(id => id <= 0))
         {

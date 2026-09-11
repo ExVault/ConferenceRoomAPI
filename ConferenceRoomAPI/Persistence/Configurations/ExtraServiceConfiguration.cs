@@ -14,7 +14,7 @@ public class ExtraServiceConfiguration : IEntityTypeConfiguration<ExtraService>
         builder.HasKey(extraService => extraService.Id);
         builder.Property(extraService => extraService.Name).HasMaxLength(100).IsRequired();
         builder.HasIndex(extraService => extraService.Name).IsUnique();
-        
+
         builder.Property(extraService => extraService.Price).HasPrecision(18, 2);
     }
 }

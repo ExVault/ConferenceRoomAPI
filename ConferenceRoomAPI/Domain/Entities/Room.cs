@@ -1,7 +1,7 @@
 namespace ConferenceRoomAPI.Domain.Entities;
 
 /// <summary>
-/// A conference room available for booking, with its capacity, hourly rate, and current availability status.
+///     A conference room available for booking, with its capacity, hourly rate, and current availability status.
 /// </summary>
 public class Room
 {

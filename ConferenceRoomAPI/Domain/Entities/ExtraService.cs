@@ -1,7 +1,7 @@
 namespace ConferenceRoomAPI.Domain.Entities;
 
 /// <summary>
-/// An optional paid service that can be offered with rooms and added to bookings.
+///     An optional paid service that can be offered with rooms and added to bookings.
 /// </summary>
 public class ExtraService
 {

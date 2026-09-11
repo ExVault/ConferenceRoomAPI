@@ -18,7 +18,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
     public RoomEndpointsTests(ConferenceRoomApiFactory factory)
     {
         _factory = factory;
-        
+
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
@@ -44,23 +44,23 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
             Capacity = 40,
             HourlyRate = 1800m
         };
-        
+
         request.ExtraServiceIds.Add(1);
         request.ExtraServiceIds.Add(2);
 
         var response = await _client.PostAsJsonAsync("/rooms", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        
-        var result = await response.Content.ReadFromJsonAsync<RoomCreatedResponse>();
-        
+
+        var result = await response.Content.ReadFromJsonAsync<CreateRoomResponse>();
+
         Assert.NotNull(result);
         Assert.Equal($"/rooms/{result.Id}", response.Headers.Location?.ToString());
 
         await using var scope = _factory.Services.CreateAsyncScope();
-        
+
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
+
         var room = await db.Rooms.Include(savedRoom => savedRoom.ExtraServices)
             .SingleAsync(savedRoom => savedRoom.Id == result.Id);
 
@@ -114,7 +114,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        
+
         Assert.Equal(
             $"Invalid extra service IDs: {int.MaxValue}",
             Assert.Single(problem.Errors[nameof(request.ExtraServiceIds)]));
@@ -144,9 +144,9 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
 
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
+
         var room = await db.Rooms.SingleAsync(savedRoom => savedRoom.Id == 1);
-        
+
         Assert.False(room.IsActive);
     }
 
@@ -188,7 +188,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
             Capacity = 60,
             HourlyRate = 2500m
         };
-        
+
         request.ExtraServiceIdsToAdd.Add(2);
         request.ExtraServiceIdsToAdd.Add(3);
         request.ExtraServiceIdsToRemove.Add(1);
@@ -201,7 +201,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
 
         await using var assertScope = _factory.Services.CreateAsyncScope();
         var assertDb = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
+
         var updatedRoom = await assertDb.Rooms.Include(room => room.ExtraServices)
             .SingleAsync(room => room.Id == 1);
 
@@ -250,6 +250,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         Assert.Equal("Name is required.", Assert.Single(problem.Errors[nameof(request.Name)]));
         Assert.Equal("Capacity must be greater than zero.", Assert.Single(problem.Errors[nameof(request.Capacity)]));
         Assert.Equal("Hourly rate must not be negative.", Assert.Single(problem.Errors[nameof(request.HourlyRate)]));
+
         Assert.Equal("Extra service IDs must be greater than zero.",
             Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToAdd)]));
     }
@@ -264,7 +265,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        
+
         Assert.Equal("At least one room update must be provided.",
             Assert.Single(problem.Errors[nameof(UpdateRoomRequest)]));
     }
@@ -283,7 +284,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        
+
         Assert.Equal("An extra service ID cannot be both added and removed.",
             Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToRemove)]));
     }
@@ -301,13 +302,13 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        
+
         Assert.Equal($"Invalid extra service IDs to add: {int.MaxValue}",
             Assert.Single(problem.Errors[nameof(request.ExtraServiceIdsToAdd)]));
 
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
+
         var room = await db.Rooms.SingleAsync(savedRoom => savedRoom.Id == 1);
 
         Assert.Equal("Зал А", room.Name);
@@ -343,5 +344,125 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
             new UpdateRoomRequest { HourlyRate = 2500m });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_FiltersByCapacityAndOverlappingBookings()
+    {
+        await using (var arrangeScope = _factory.Services.CreateAsyncScope())
+        {
+            var arrangeDb = arrangeScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var roomToConfigure = await arrangeDb.Rooms.SingleAsync(savedRoom => savedRoom.Id == 2);
+
+            roomToConfigure.ExtraServices.Add(new RoomExtraService { Room = roomToConfigure, ExtraServiceId = 3 });
+            arrangeDb.Bookings.Add(new Booking
+            {
+                RoomId = 1,
+                StartUtc = new DateTime(2026, 9, 15, 7, 0, 0, DateTimeKind.Utc),
+                EndUtc = new DateTime(2026, 9, 15, 9, 0, 0, DateTimeKind.Utc),
+                HourlyRateSnapshot = 2000m,
+                TotalPrice = 4000m
+            });
+            await arrangeDb.SaveChangesAsync();
+        }
+
+        var response = await _client.GetAsync(
+            "/rooms/available?startAt=2026-09-15T10:30:00%2B03:00&endAt=2026-09-15T11:30:00%2B03:00&minCapacity=50");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var rooms = await response.Content.ReadFromJsonAsync<AvailableRoomResponse[]>();
+
+        Assert.NotNull(rooms);
+        var room = Assert.Single(rooms);
+        Assert.Equal(2, room.Id);
+        Assert.Equal("Зал B", room.Name);
+        Assert.Equal(100, room.Capacity);
+        Assert.Equal(3500m, room.HourlyRate);
+
+        var extraService = Assert.Single(room.ExtraServices);
+        Assert.Equal(3, extraService.Id);
+        Assert.Equal("Звук", extraService.Name);
+        Assert.Equal(700m, extraService.Price);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithAdjacentBooking_ReturnsRoom()
+    {
+        await using (var arrangeScope = _factory.Services.CreateAsyncScope())
+        {
+            var arrangeDb = arrangeScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            arrangeDb.Bookings.Add(new Booking
+            {
+                RoomId = 1,
+                StartUtc = new DateTime(2026, 9, 15, 7, 0, 0, DateTimeKind.Utc),
+                EndUtc = new DateTime(2026, 9, 15, 9, 0, 0, DateTimeKind.Utc),
+                HourlyRateSnapshot = 2000m,
+                TotalPrice = 4000m
+            });
+            await arrangeDb.SaveChangesAsync();
+        }
+
+        var response = await _client.GetAsync(
+            "/rooms/available?startAt=2026-09-15T12:00:00%2B03:00&endAt=2026-09-15T14:00:00%2B03:00&minCapacity=50");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var rooms = await response.Content.ReadFromJsonAsync<AvailableRoomResponse[]>();
+
+        Assert.NotNull(rooms);
+        Assert.Equal([1, 2], rooms.Select(room => room.Id));
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_DoesNotReturnInactiveRooms()
+    {
+        await _client.DeleteAsync("/rooms/2");
+
+        var response = await _client.GetAsync(
+            "/rooms/available?startAt=2026-09-15T10:00:00Z&endAt=2026-09-15T11:00:00Z&minCapacity=75");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var rooms = await response.Content.ReadFromJsonAsync<AvailableRoomResponse[]>();
+
+        Assert.NotNull(rooms);
+        Assert.Empty(rooms);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithInvalidRequest_ReturnsValidationProblem()
+    {
+        var response = await _client.GetAsync(
+            "/rooms/available?startAt=2026-09-15T14:00:00Z&endAt=2026-09-15T10:00:00Z&minCapacity=0");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+
+        Assert.Equal("End time must be greater than start time.",
+            Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.EndAt)]));
+
+        Assert.Equal("Capacity must be greater than zero.",
+            Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.MinCapacity)]));
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithoutRequiredParameters_ReturnsBadRequest()
+    {
+        var response = await _client.GetAsync("/rooms/available");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithoutExplicitOffsets_ReturnsBadRequest()
+    {
+        var response = await _client.GetAsync(
+            "/rooms/available?startAt=2026-09-15T10:00:00&endAt=2026-09-15T11:00:00&minCapacity=50");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

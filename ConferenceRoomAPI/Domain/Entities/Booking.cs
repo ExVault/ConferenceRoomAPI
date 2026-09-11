@@ -1,7 +1,7 @@
 namespace ConferenceRoomAPI.Domain.Entities;
 
 /// <summary>
-/// A room reservation for a specific time period, including the rates and total price recorded at booking time.
+///     A room reservation for a specific time period, including the rates and total price recorded at booking time.
 /// </summary>
 public class Booking
 {

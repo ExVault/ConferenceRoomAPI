@@ -11,14 +11,20 @@ public static class RoomEndpoints
 
         rooms.MapPost("", CreateRoomAsync)
             .WithSummary("Add a conference room")
-            .Produces<RoomCreatedResponse>(StatusCodes.Status201Created)
+            .Produces<CreateRoomResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        rooms.MapGet("/available", FindAvailableRoomsAsync)
+            .WithSummary("Find available conference rooms")
+            .Produces<AvailableRoomResponse[]>(StatusCodes.Status200OK)
+            .ProducesValidationProblem();
 
         rooms.MapPatch("/{id:int}", UpdateRoomAsync)
             .WithSummary("Update a conference room")
             .WithDescription(
-                "Updates supplied room properties. Extra service IDs use set semantics through the add and remove collections.")
+                "Updates supplied room properties. " +
+                "Extra service IDs use set semantics through the add and remove collections.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound)
@@ -32,6 +38,30 @@ public static class RoomEndpoints
         return endpoints;
     }
 
+    private static async Task<IResult> FindAvailableRoomsAsync(
+        [AsParameters] AvailableRoomsRequest request,
+        IRequestValidator<AvailableRoomsRequest> validator,
+        IRoomService roomService,
+        CancellationToken ct)
+    {
+        var validation = validator.Validate(request);
+
+        if (!validation.IsValid)
+            return TypedResults.ValidationProblem(validation.Errors);
+
+        // Normalize start/end provided by client
+        var startUtc = request.StartAt.Value.UtcDateTime;
+        var endUtc = request.EndAt.Value.UtcDateTime;
+
+        var rooms = await roomService.FindAvailableAsync(
+            startUtc,
+            endUtc,
+            request.MinCapacity,
+            ct);
+
+        return TypedResults.Ok(rooms);
+    }
+
     private static async Task<IResult> CreateRoomAsync(
         CreateRoomRequest request,
         IRequestValidator<CreateRoomRequest> validator,
@@ -39,7 +69,7 @@ public static class RoomEndpoints
         CancellationToken ct)
     {
         var validation = validator.Validate(request);
-        
+
         if (!validation.IsValid)
             return TypedResults.ValidationProblem(validation.Errors);
 
@@ -49,17 +79,17 @@ public static class RoomEndpoints
         {
             CreateRoomStatus.Created => TypedResults.Created(
                 $"/rooms/{result.RoomId}",
-                new RoomCreatedResponse(result.RoomId)),
-            
+                new CreateRoomResponse(result.RoomId)),
+
             CreateRoomStatus.NameConflict => TypedResults.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "A room with this name already exists"),
-            
+
             CreateRoomStatus.InvalidExtraServiceIds => TypedResults.ValidationProblem(
                 new Dictionary<string, string[]>
                 {
                     [nameof(request.ExtraServiceIds)] =
-                    [$"Invalid extra service IDs: {string.Join(", ", result.InvalidExtraServiceIds)}"]
+                        [$"Invalid extra service IDs: {string.Join(", ", result.InvalidExtraServiceIds)}"]
                 }),
 
             _ => throw new InvalidOperationException($"Unhandled room creation status: {result.Status}")
@@ -73,8 +103,8 @@ public static class RoomEndpoints
     {
         var result = await roomService.DeleteAsync(id, ct);
 
-        return result == DeleteRoomResult.Deleted 
-            ? TypedResults.NoContent() 
+        return result == DeleteRoomResult.Deleted
+            ? TypedResults.NoContent()
             : TypedResults.NotFound();
     }
 
