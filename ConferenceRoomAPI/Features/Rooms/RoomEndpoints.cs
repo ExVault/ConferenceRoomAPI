@@ -93,7 +93,7 @@ public static class RoomEndpoints
         };
     }
 
-    private static async Task<Results<NoContent, NotFound>> DeleteRoomAsync(
+    private static async Task<IResult> DeleteRoomAsync(
         int id,
         IRoomService roomService,
         CancellationToken ct)

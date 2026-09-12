@@ -17,7 +17,7 @@ public static class BookingRulesConfiguration
 
     private static void Validate(BookingRules rules)
     {
-        if (rules.MinimumBookingDuration <= TimeSpan.FromMinutes(1))
+        if (rules.MinimumBookingDuration < TimeSpan.FromMinutes(1))
         {
             throw new InvalidOperationException("BookingRules:MinimumBookingDuration must be at least 1 minute.");
         }
