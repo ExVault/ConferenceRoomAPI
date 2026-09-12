@@ -1,3 +1,5 @@
+using ConferenceRoomAPI.Configuration;
+using ConferenceRoomAPI.Features.Bookings;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using ConferenceRoomAPI.Persistence.Seeding;
@@ -19,6 +21,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddSingleton(builder.Configuration.LoadBookingRules());
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.RespectNullableAnnotations = true;
@@ -26,6 +30,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddRoomFeatures();
+builder.Services.AddBookingFeatures();
 
 var app = builder.Build();
 
@@ -49,5 +54,6 @@ else
 app.UseHttpsRedirection();
 
 app.MapRoomEndpoints();
+app.MapBookingEndpoints();
 
 app.Run();

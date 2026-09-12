@@ -8,11 +8,11 @@ public static class RoomRequestValidation
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            result.Errors[propertyName] = ["Name is required."];
+            result.AddError(propertyName, "Name is required.");
         }
         else if (name.Trim().Length > 100)
         {
-            result.Errors[propertyName] = ["Name must not exceed 100 characters."];
+            result.AddError(propertyName, "Name must not exceed 100 characters.");
         }
     }
 
@@ -20,7 +20,7 @@ public static class RoomRequestValidation
     {
         if (capacity <= 0)
         {
-            result.Errors[propertyName] = ["Capacity must be greater than zero."];
+            result.AddError(propertyName, "Capacity must be greater than zero.");
         }
     }
 
@@ -28,22 +28,7 @@ public static class RoomRequestValidation
     {
         if (hourlyRate < 0)
         {
-            result.Errors[propertyName] = ["Hourly rate must not be negative."];
-        }
-    }
-
-    public static void ValidateServiceIds(
-        IReadOnlyCollection<int> serviceIds,
-        string propertyName,
-        ValidationResult result)
-    {
-        if (serviceIds.Any(id => id <= 0))
-        {
-            result.Errors[propertyName] = ["Extra service IDs must be greater than zero."];
-        }
-        else if (serviceIds.Count != serviceIds.Distinct().Count())
-        {
-            result.Errors[propertyName] = ["Extra service IDs must not contain duplicates."];
+            result.AddError(propertyName, "Hourly rate must not be negative.");
         }
     }
 }

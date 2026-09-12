@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using ConferenceRoomAPI.Domain;
 using ConferenceRoomAPI.Domain.Entities;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
@@ -475,6 +476,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
     [Fact]
     public async Task FindAvailableRooms_OutsideOpeningHours_ReturnsValidationProblem()
     {
+        var rules = _factory.Services.GetRequiredService<BookingRules>();
         var response = await _client.GetAsync(
             "/rooms/available?date=2026-09-15&startTime=05:30&endTime=23:30&minCapacity=50");
 
@@ -483,9 +485,57 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        Assert.Equal("Start time must not be earlier than 06:00.",
+
+        Assert.Equal($"Start time must not be earlier than {rules.OpeningTime:HH:mm}.",
             Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.StartTime)]));
-        Assert.Equal("End time must not be later than 23:00.",
+
+        Assert.Equal($"End time must not be later than {rules.ClosingTime:HH:mm}.",
+            Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.EndTime)]));
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithRangeShorterThanMinimumBookingDuration_ReturnsValidationProblem()
+    {
+        var rules = _factory.Services.GetRequiredService<BookingRules>();
+
+        var startTime = new TimeOnly(10, 0);
+        var endTime = startTime.Add(rules.MinimumBookingDuration - TimeSpan.FromMinutes(1));
+
+        var response = await _client.GetAsync(
+            $"/rooms/available?date=2026-09-15&startTime={startTime:HH:mm}&endTime={endTime:HH:mm}&minCapacity=50");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+
+        Assert.Contains(
+            $"Booking duration must be at least {rules.MinimumBookingDuration.TotalMinutes} minutes.",
+            problem.Errors[nameof(AvailableRoomsRequest.EndTime)]);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithTimesOutsideBookingTimeStep_ReturnsValidationProblem()
+    {
+        var rules = _factory.Services.GetRequiredService<BookingRules>();
+
+        var startTime = rules.OpeningTime.Add(TimeSpan.FromMinutes(1));
+        var endTime = startTime.Add(rules.MinimumBookingDuration);
+
+        var response = await _client.GetAsync(
+            $"/rooms/available?date=2026-09-15&startTime={startTime:HH:mm}&endTime={endTime:HH:mm}&minCapacity=50");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+
+        Assert.Equal($"Start time must align with {rules.BookingTimeStep.TotalMinutes}-minute intervals.",
+            Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.StartTime)]));
+
+        Assert.Equal($"End time must align with {rules.BookingTimeStep.TotalMinutes}-minute intervals.",
             Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.EndTime)]));
     }
 }

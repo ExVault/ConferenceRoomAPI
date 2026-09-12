@@ -24,26 +24,27 @@ public class UpdateRoomRequestValidator : IRequestValidator<UpdateRoomRequest>
             RoomRequestValidation.ValidateHourlyRate(request.HourlyRate.Value, nameof(request.HourlyRate), result);
         }
 
-        RoomRequestValidation.ValidateServiceIds(
+        ExtraServiceValidation.ValidateIds(
             serviceIdsToAdd,
             nameof(request.ExtraServiceIdsToAdd),
             result);
 
-        RoomRequestValidation.ValidateServiceIds(
+        ExtraServiceValidation.ValidateIds(
             serviceIdsToRemove,
             nameof(request.ExtraServiceIdsToRemove),
             result);
 
         if (serviceIdsToAdd.Intersect(serviceIdsToRemove).Any())
         {
-            result.Errors[nameof(request.ExtraServiceIdsToRemove)] =
-                ["An extra service ID cannot be both added and removed."];
+            result.AddError(
+                nameof(request.ExtraServiceIdsToRemove),
+                "An extra service ID cannot be both added and removed.");
         }
 
         if (request.Name == null && request.Capacity == null && request.HourlyRate == null &&
             serviceIdsToAdd.Count == 0 && serviceIdsToRemove.Count == 0)
         {
-            result.Errors[nameof(UpdateRoomRequest)] = ["At least one room update must be provided."];
+            result.AddError(nameof(UpdateRoomRequest), "At least one room update must be provided.");
         }
 
         return result;
