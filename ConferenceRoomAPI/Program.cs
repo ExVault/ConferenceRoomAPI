@@ -1,5 +1,6 @@
 using ConferenceRoomAPI.Configuration;
 using ConferenceRoomAPI.Features.Bookings;
+using ConferenceRoomAPI.Features.Reports;
 using ConferenceRoomAPI.Features.Rooms;
 using ConferenceRoomAPI.Persistence;
 using ConferenceRoomAPI.Persistence.Seeding;
@@ -34,6 +35,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddRoomFeatures();
 builder.Services.AddBookingFeatures();
+builder.Services.AddReportFeatures();
 
 var app = builder.Build();
 
@@ -66,5 +68,6 @@ app.UseHttpsRedirection();
 
 app.MapRoomEndpoints();
 app.MapBookingEndpoints();
+app.MapReportEndpoints();
 
 app.Run();
