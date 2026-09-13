@@ -76,6 +76,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
+
         Assert.Equal("Name is required.", Assert.Single(problem.Errors[nameof(request.Name)]));
         Assert.Equal("Capacity must be greater than zero.", Assert.Single(problem.Errors[nameof(request.Capacity)]));
         Assert.Equal("Hourly rate must not be negative.", Assert.Single(problem.Errors[nameof(request.HourlyRate)]));
@@ -264,6 +265,7 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
+
         Assert.Equal("Name is required.", Assert.Single(problem.Errors[nameof(request.Name)]));
         Assert.Equal("Capacity must be greater than zero.", Assert.Single(problem.Errors[nameof(request.Capacity)]));
         Assert.Equal("Hourly rate must not be negative.", Assert.Single(problem.Errors[nameof(request.HourlyRate)]));
@@ -389,13 +391,16 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
         var rooms = await response.Content.ReadFromJsonAsync<AvailableRoomResponse[]>();
 
         Assert.NotNull(rooms);
+
         var room = Assert.Single(rooms);
+
         Assert.Equal(2, room.Id);
         Assert.Equal("Зал B", room.Name);
         Assert.Equal(100, room.Capacity);
         Assert.Equal(3500m, room.HourlyRate);
 
         var extraService = Assert.Single(room.ExtraServices);
+
         Assert.Equal(3, extraService.Id);
         Assert.Equal("Звук", extraService.Name);
         Assert.Equal(700m, extraService.Price);
@@ -444,6 +449,45 @@ public class RoomEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAsyn
 
         Assert.NotNull(rooms);
         Assert.Empty(rooms);
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithPastStartTime_ReturnsValidationProblem()
+    {
+        var now = ConferenceRoomApiFactory.CurrentTime;
+        var date = DateOnly.FromDateTime(now.DateTime);
+        var startTime = TimeOnly.FromDateTime(now.AddMinutes(-30).DateTime);
+        var endTime = TimeOnly.FromDateTime(now.AddMinutes(30).DateTime);
+
+        var response = await _client.GetAsync(
+            $"/rooms/available?date={date:yyyy-MM-dd}&startTime={startTime:HH:mm}&endTime={endTime:HH:mm}&minCapacity=1");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+
+        Assert.NotNull(problem);
+        Assert.Equal("Booking start date and time must be in the future.",
+            Assert.Single(problem.Errors[nameof(AvailableRoomsRequest.Date)]));
+    }
+
+    [Fact]
+    public async Task FindAvailableRooms_WithFutureStartTimeToday_ReturnsRooms()
+    {
+        var now = ConferenceRoomApiFactory.CurrentTime;
+        var date = DateOnly.FromDateTime(now.DateTime);
+        var startTime = TimeOnly.FromDateTime(now.AddMinutes(10).DateTime);
+        var endTime = TimeOnly.FromDateTime(now.AddMinutes(40).DateTime);
+
+        var response = await _client.GetAsync(
+            $"/rooms/available?date={date:yyyy-MM-dd}&startTime={startTime:HH:mm}&endTime={endTime:HH:mm}&minCapacity=1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var rooms = await response.Content.ReadFromJsonAsync<AvailableRoomResponse[]>();
+
+        Assert.NotNull(rooms);
+        Assert.Equal(3, rooms.Length);
     }
 
     [Fact]

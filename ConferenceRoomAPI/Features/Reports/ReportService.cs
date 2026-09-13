@@ -43,26 +43,26 @@ public class ReportService : IReportService
                 });
 
         var roomUsage = rooms.Select(room =>
-        {
-            if (!usageByRoom.TryGetValue(room.Id, out var usage))
-                return new RoomUsage(room.Id, room.Name, 0, 0, 0, 0);
+            {
+                if (!usageByRoom.TryGetValue(room.Id, out var usage))
+                    return new RoomUsage(room.Id, room.Name, 0, 0, 0, 0);
 
-            var averageBookingValue = decimal.Round(
-                usage.Revenue / usage.BookingCount,
-                2,
-                MidpointRounding.AwayFromZero);
+                var averageBookingValue = decimal.Round(
+                    usage.Revenue / usage.BookingCount,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
-            return new RoomUsage(
-                room.Id,
-                room.Name,
-                usage.BookingCount,
-                usage.BookedHours,
-                usage.Revenue,
-                averageBookingValue);
-        })
-        .OrderByDescending(usage => usage.BookingCount)
-        .ThenBy(usage => usage.RoomId)
-        .ToArray();
+                return new RoomUsage(
+                    room.Id,
+                    room.Name,
+                    usage.BookingCount,
+                    usage.BookedHours,
+                    usage.Revenue,
+                    averageBookingValue);
+            })
+            .OrderByDescending(usage => usage.BookingCount)
+            .ThenBy(usage => usage.RoomId)
+            .ToArray();
 
         return new RoomUsageResponse(
             from,
@@ -104,15 +104,15 @@ public class ReportService : IReportService
                 });
 
         var extraServiceUsage = extraServices.Select(service =>
-        {
-            if (!usageByService.TryGetValue(service.Id, out var usage))
-                return new ExtraServiceUsage(service.Id, service.Name, 0, 0);
+            {
+                if (!usageByService.TryGetValue(service.Id, out var usage))
+                    return new ExtraServiceUsage(service.Id, service.Name, 0, 0);
 
-            return new ExtraServiceUsage(service.Id, service.Name, usage.BookingCount, usage.Revenue);
-        })
-        .OrderByDescending(usage => usage.BookingCount)
-        .ThenBy(usage => usage.ExtraServiceId)
-        .ToArray();
+                return new ExtraServiceUsage(service.Id, service.Name, usage.BookingCount, usage.Revenue);
+            })
+            .OrderByDescending(usage => usage.BookingCount)
+            .ThenBy(usage => usage.ExtraServiceId)
+            .ToArray();
 
         return new ExtraServiceUsageResponse(
             from,

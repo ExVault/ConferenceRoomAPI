@@ -1,5 +1,4 @@
 using ConferenceRoomAPI.Common.Validation;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace ConferenceRoomAPI.Features.Reports;
 
@@ -34,7 +33,7 @@ public static class ReportEndpoints
             return TypedResults.ValidationProblem(validation.Errors);
 
         var report = await reportService.GetRoomUsageAsync(request.From, request.To, ct);
-        
+
         return TypedResults.Ok(report);
     }
 
@@ -50,7 +49,7 @@ public static class ReportEndpoints
             return TypedResults.ValidationProblem(validation.Errors);
 
         var report = await reportService.GetExtraServiceUsageAsync(request.From, request.To, ct);
-        
+
         return TypedResults.Ok(report);
     }
 }

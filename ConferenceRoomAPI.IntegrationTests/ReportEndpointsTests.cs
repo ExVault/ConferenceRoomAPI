@@ -48,7 +48,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
         var report = await response.Content.ReadFromJsonAsync<RoomUsageResponse>();
 
         Assert.NotNull(report);
-        
+
         Assert.Equal(new DateOnly(2026, 9, 1), report.From);
         Assert.Equal(new DateOnly(2026, 9, 2), report.To);
         Assert.Equal(3, report.TotalBookings);
@@ -94,7 +94,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
             2800m,
             (1, 500m),
             (2, 300m));
-        
+
         await AddBookingAsync(
             2,
             new DateOnly(2026, 9, 2),
@@ -102,7 +102,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
             new TimeOnly(13, 0),
             4625m,
             (1, 600m));
-        
+
         await AddBookingAsync(
             3,
             new DateOnly(2026, 9, 3),
@@ -156,7 +156,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
 
         Assert.NotNull(problem);
-        
+
         Assert.Equal("End date must not be earlier than start date.",
             Assert.Single(problem.Errors[nameof(ReportPeriodRequest.To)]));
     }
@@ -171,7 +171,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
+
         var booking = new Booking
         {
             RoomId = roomId,
@@ -193,7 +193,7 @@ public class ReportEndpointsTests : IClassFixture<ConferenceRoomApiFactory>, IAs
         }
 
         db.Bookings.Add(booking);
-        
+
         await db.SaveChangesAsync();
     }
 }

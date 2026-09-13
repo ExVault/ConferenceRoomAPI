@@ -1,5 +1,4 @@
 using ConferenceRoomAPI.Common.Validation;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace ConferenceRoomAPI.Features.Rooms;
 

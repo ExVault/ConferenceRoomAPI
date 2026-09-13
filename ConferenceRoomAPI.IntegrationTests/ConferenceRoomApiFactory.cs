@@ -10,11 +10,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ConferenceRoomAPI.IntegrationTests;
 
 public class ConferenceRoomApiFactory : WebApplicationFactory<Program>
 {
+    public static DateTimeOffset CurrentTime { get; } =
+        new(2026, 9, 10, 10, 0, 0, TimeSpan.Zero);
+
     // A SQLite in memory db exists only while this connection remains open
     private readonly SqliteConnection _dbConn = new("Data Source=:memory:");
 
@@ -37,6 +41,7 @@ public class ConferenceRoomApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<TimeProvider>();
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
@@ -45,6 +50,10 @@ public class ConferenceRoomApiFactory : WebApplicationFactory<Program>
                 options.UseSqlite(_dbConn)
                     .UseSeeding(DbSeeder.Seed)
                     .UseAsyncSeeding(DbSeeder.SeedAsync));
+
+            var timeProvider = new FakeTimeProvider(CurrentTime);
+            timeProvider.SetLocalTimeZone(TimeZoneInfo.Utc);
+            services.AddSingleton<TimeProvider>(timeProvider);
         });
     }
 

@@ -4,6 +4,22 @@ namespace ConferenceRoomAPI.Common.Validation;
 
 public static class BookingTimeValidation
 {
+    public static void ValidateStartTimeIsFuture(
+        DateOnly date,
+        TimeOnly startTime,
+        TimeProvider timeProvider,
+        string datePropertyName,
+        ValidationResult result)
+    {
+        var requestedStart = date.ToDateTime(startTime);
+        var now = timeProvider.GetLocalNow().DateTime;
+
+        if (requestedStart <= now)
+        {
+            result.AddError(datePropertyName, "Booking start date and time must be in the future.");
+        }
+    }
+
     public static void Validate(
         BookingRules rules,
         TimeOnly startTime,

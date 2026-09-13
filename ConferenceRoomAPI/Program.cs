@@ -13,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 
 var dbPath = builder.Configuration.GetValue<string>("SQLiteDatabasePath")
-              ?? throw new InvalidOperationException("'SQLiteDatabasePath' is not configured.");
+             ?? throw new InvalidOperationException("'SQLiteDatabasePath' is not configured.");
 
 var connStr = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
 
@@ -24,6 +24,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddSingleton(builder.Configuration.LoadBookingRules());
 
@@ -41,14 +42,14 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    // Automatically create database file and apply migrations in dev environment for convenience.
+    // Automatically create database file and apply migrations in dev environment, for convenience.
     // Production migrations should be deployed separately using a bundle or reviewed SQL script.
     SqliteDatabaseFile.EnsureCreated(dbPath, builder.Environment.ContentRootPath);
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-    
-    
+
+
     app.MapOpenApi();
 
     app.UseSwaggerUI(options =>
